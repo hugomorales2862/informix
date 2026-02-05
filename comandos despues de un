@@ -1,0 +1,68 @@
+Informe Detallado de Intervención: Error SCHAPI -1265
+Este reporte contiene la bitácora completa de comandos utilizados para resolver el problema de desbordamiento en el Auto Update Statistics (AUS).
+
+1. Fase de Diagnóstico
+Identificación del error y búsqueda de estadísticas con fechas que exceden el límite de ~11 años.
+
+Búsqueda en logs:
+
+tail -n 100 /opt/informix/tmp/online.log | grep -i "SCHAPI"
+Identificación de estadísticas obsoletas (Eje: sysadmin):
+
+DATABASE sysadmin;
+SELECT count(*) FROM sysdistrib WHERE constr_time < '2016-01-01 00:00:00';
+-- Resultado inicial: Cientos de registros con fecha de 2014.
+2. Fase de Saneamiento (Comandos SQL)
+Se ejecutó la actualización de estadísticas en las tablas críticas de las bases de datos del sistema.
+
+Limpieza manual en sysadmin:
+
+DATABASE sysadmin;
+UPDATE STATISTICS HIGH FOR TABLE systables;
+UPDATE STATISTICS HIGH FOR TABLE syscolumns;
+UPDATE STATISTICS HIGH FOR TABLE sysindexes;
+UPDATE STATISTICS HIGH FOR TABLE sysdistrib;
+UPDATE STATISTICS HIGH FOR TABLE sysviews;
+UPDATE STATISTICS HIGH FOR TABLE syssynonyms;
+Limpieza en otras bases de datos de sistema:
+
+DATABASE sysuser; UPDATE STATISTICS HIGH;
+DATABASE sysadmin_tmp; UPDATE STATISTICS HIGH;
+DATABASE syspgm4gl; UPDATE STATISTICS HIGH;
+DATABASE stores7; UPDATE STATISTICS HIGH;
+3. Automatización del Saneamiento (Script Bash)
+Para asegurar que ninguna tabla (incluyendo las de sistema con tabid < 100) quedara fuera, se utilizó este script iterativo:
+
+for db in sysmaster sysutils sysuser sysadmin_tmp mdn stores7 syspgm4gl sicol tienda sysadmin; do
+  echo "Procesando base de datos: $db"
+  dbaccess $db - <<'ESQL'
+    -- Identificar tablas con estadísticas viejas y forzar actualización
+    UPDATE STATISTICS HIGH;
+ESQL
+done
+4. Reinicio del Motor AUS
+Para limpiar la caché de comandos pendientes que fallaban sistemáticamente, se vaciaron las tablas de control del scheduler.
+
+DATABASE sysadmin;
+DELETE FROM aus_command;
+DELETE FROM aus_cmd_list;
+DELETE FROM aus_cmd_comp;
+DELETE FROM ph_bg_jobs_results WHERE tk_id = 45;
+5. Verificación Final de Ejecución
+Comandos para forzar la tarea y verificar que el código de retorno sea exitoso.
+
+Disparo manual de la tarea 45:
+
+UPDATE ph_task SET tk_next_execution = CURRENT WHERE tk_id = 45;
+Monitoreo de resultados en el historial del scheduler:
+
+SELECT run_id, run_task_seq, run_retcode, run_time, run_duration 
+FROM ph_run 
+WHERE run_task_id = 45 
+ORDER BY run_id DESC;
+-- Se confirmó retcode exitoso tras la limpieza.
+6. Restauración de Programación
+Para dejar el sistema en operación normal (ventana de las 01:00 AM):
+
+UPDATE ph_task SET tk_next_execution = '2026-02-06 01:00:00' WHERE tk_id = 45;
+Estado Final del Sistema: Operativo y Saneado. Próximo Riesgo de Overflow: Año 2037 (en 11 años si no se actualizan las estadísticas).
