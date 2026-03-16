@@ -6,3 +6,8 @@ docker run -it --name ifx --privileged -p 9088:9088 -p 9089:9089 -p 27017:27017 
 hacer una recuperacion  fisica    
 
 ontape -p -v -t nivel.0
+
+
+CONFIGURAR DRAUTO    PARA SABER QUE HACER  CADA NODO 
+
+DRTIMEOUT PARA SABER EL TIEMPO DE PERDIDA DE DATOS 
