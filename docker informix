@@ -11,3 +11,169 @@ ontape -p -v -t nivel.0
 CONFIGURAR DRAUTO    PARA SABER QUE HACER  CADA NODO 
 
 DRTIMEOUT PARA SABER EL TIEMPO DE PERDIDA DE DATOS 
+
+-------------------------------------------------------------------
+                inicio de procedimiento para realizar espejismo 
+-------------------------------------------------------------------
+
+pasos para iniciar un espejismo de la base de datos 
+
+igualar el servidor en cuanto a particiones y sistema operativo 
+
+#ajustar hostname 
+
+vi /etc/hostname
+vi /etc/hosts #192.168.73.19   srnlnx2
+exec bash
+exec bash
+hostnamectl set-hostname srvlnx2
+hostnamectl status
+
+
+#transferencia de usuarios grupos y contraseñas 
+
+
+scp /etc/passwd /etc/group /etc/shadow root@192.168.73.19:/etc/
+
+#  Corregir permisos en el Nodo B (Vital para que el sistema arranque bien)
+ssh root@192.168.73.19 "chmod 644 /etc/passwd /etc/group && chmod 000 /etc/shadow"
+
+
+#transferimos los archivos al nodo b 
+scp -r informix@192.168.73.30:/opt/media/* /opt/media/
+
+#descromprimir los archivos de instalacion en orden primero las herramientas despues el informix   
+#instalar 4gl   para ello necesito las siguientes librerias   y la licencia AAA#J305417 SRVDJV
+yum install glibc.i686 
+
+#verificamos si ya tenemos todas las librerias segun el manual de instalacion      opt/informix/release/en_us/0333/ids_machinenotes.txt
+#verificamos si las tenemos instaladas     
+
+libaio-0.3.109
+        libgcc-4.8.5
+        libstdc++-4.8.5
+        ncurses-5.9
+        pam-1.1.8
+        elfutils-libelf-0.168
+rpm -qa |grep libaio
+
+#instalamos el motor de base de datos,  configuramos el archivo onconfig  creamos  los dbspaces  con los permisos 660  y a los directorios principales  permisos de 775 
+#verificar los puertos   vi /etc/services   comentar  los puerto 1526 y dejarlos especificos  para informix  
+
+#crear un directorio raiz  /backup/informix/nivel.0       el nivel.0 lleva 660 y crear un directorio para  logs  llogs  permisos 770 
+#configurar DIRECT_IO 1
+#configurar el alarmprogram.sh    Y       bkcup cmd = ontape -a -d 
+#configurar el sqlhosts  
+#srvlnx2_tcp    onsoctcp        192.168.73.19        1526  #-sqlturbo
+#srvlnx_shm    onipcshm        srvlnx               sqlexec
+#srvlnx2_shm    onipcshm        192.168.73.19        sqlexec
+
+#abrir los puertos 
+# Agrega el puerto 1526 de forma permanente
+firewall-cmd --permanent --zone=public --add-port=1526/tcp
+
+# Recarga el firewall para que surta efecto
+firewall-cmd --reload
+
+redirigir  lis libaio  ln -s /usr/lib/libncurses.so.5 /usr/lib/libncurses.so.5
+yum install -y ncurses-libs.x86_64 ncurses-libs.i686
+
+modificar el tamaño del  rootdbspaces desde el onconfig   al taamaño del nodo padre o por lo regular son   500000 
+
+#iniciar la db
+oninit -iyv
+
+
+#iniciar a cargar dbspaces   
+onspaces  
+
+rm /IFMXDATA2/prod/blobdbs
+# dd creará el archivo de 100GB reales bit a bit
+dd if=/dev/zero of=/IFMXDATA2/prod/blobdbs bs=1M count=102400
+chown informix:informix /IFMXDATA2/prod/blobdbs
+chmod 660 /IFMXDATA2/prod/blobdbs  para el blob  use un -g 8    y 10240000000  al sbpace no le agregue paginas 
+
+ahora le indicamos que el physicallog busque su directorio 
+onparams -p -s 900000 -d physdbs -y
+
+revisamos  oncheck -pe physdbs 
+
+
+
+
+creamos los primeros 3 
+for i in 1 2 3; do onparams -a -d logsdbs -s 20000; done
+
+nos movemos al primero que creamos onmode -l
+
+corremos un backup de nivel 0 para poder borrar 
+backup de logs   ontape -a
+
+eliminamos  for i in 1 2 3 4 5 6; do onparams -d -y -l $i; done
+
+crear 50 logsdbs
+
+editar  dbspacetemp  en onconfig  y dalr tmp1dbs  
+reiniciamos  ky oninit
+
+ podes crear una db  de prueba      dbaccessdemo7 -dbspaces data1dbs -nots -log stores
+
+
+ejecutar como root sysctl -w vm.nr_hugepages=4096
+reinicir db 
+
+------------------------------------------------------------
+transeferencia de archivos con rzync
+-----------------------------------------------------------
+#crear usuario rzin para iniciar replica de usiarios grupos y passwords 
+groupadd rzync
+useradd -g rzync -m -s /bin/bash rzync
+
+
+# Permitir al usuario 'rsync' gestionar usuarios, EXCEPTO root e informix   en visudo 
+rsync ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/userdel, \
+    /usr/bin/passwd [A-Za-z0-9]*, \
+    !/usr/bin/passwd root, \
+    !/usr/bin/passwd informix
+
+
+# Cambiamos al usuario rzync 
+su - rzync
+
+# Generamos la llave (presiona ENTER a todo)
+ssh-keygen -t rsa -b 4096
+
+# Pasamos la llave al Nodo B
+ssh-copy-id rzync@192.168.1.19
+o si hay bloqueo usar esto cat ~/.ssh/id_rsa.pub | ssh rzync@192.168.73.19 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+#transferencia de archivos 4gl y cualquier otro que debe de estar en ambos nodos  usan rzync 
+rsync -avz root@192.168.73.23:/home/adminsau/ /home/adminsau/
+
+
+#agregar los alias  /root/.bashrc 
+#cargar los alias  source /root/.bashrc
+# este comando trae todo lo que hay en el nodo padre y corrige lo que halla diferente rsync -avzPh --delete root@192.168.1.23:/home/ /home/
+
+---------------------------------------------------------------------------------------------
+CONFIGURACION HDR INFORMIX
+---------------------------------------------------------------------------------------------
+
+#asignar nodos en /etc/hosts
+#asignar nodos en /etc/hosts.equiv
+#asignar nodos en sqlhosts
+
+
+#realizamos pruebas de conexion   entre ambos  nodos por lo regular dbaccess 
+#realizamos una copia de nivel 0   y la emviamos de manera temporal   a /tmp/ para que no interfiera con la configuracion inicial de la db 
+
+ontape -s-L 0 -t STDIO | gzip > /tmp/master.ontape.gz
+
+#luego mandamos este backup al nodo b   con scp  o rzync   
+
+#estando la copia en el nodo b   hacemos una recuperacion fisica completa  para iniciar el espejo hdr 
+
+zcat /tmp/master.ontape.gz | ontape -p -v -t STDIO
+
+
+
