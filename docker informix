@@ -160,7 +160,10 @@ CONFIGURACION HDR INFORMIX
 ---------------------------------------------------------------------------------------------
 
 #asignar nodos en /etc/hosts
+
 #asignar nodos en /etc/hosts.equiv
+ip hostsname
+hostname
 #asignar nodos en sqlhosts
 
 
@@ -174,6 +177,11 @@ ontape -s-L 0 -t STDIO | gzip > /tmp/master.ontape.gz
 #estando la copia en el nodo b   hacemos una recuperacion fisica completa  para iniciar el espejo hdr 
 
 zcat /tmp/master.ontape.gz | ontape -p -v -t STDIO
+
+------------------------------------------------------------
+fase de implementacion keepalived
+-----------------------------------------------------------
+sudo yum install keepalived -y
 
 
 
