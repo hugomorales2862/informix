@@ -183,5 +183,17 @@ fase de implementacion keepalived
 -----------------------------------------------------------
 sudo yum install keepalived -y
 
+modificar el archivo de configuracion de keepalived 
+modificar el sqlhosts  
+apagar la db 
+encender la db 
 
+
+
+
+
+
+
+####################podemos agregar una llave para que nadie pueda borrar nuetras llaves  chattr +i /home/rzync/.ssh/authorized_keys
+##################### y asi se quita la llave chattr -i /home/rzync/.ssh/authorized_keys
 
