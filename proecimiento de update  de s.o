@@ -21,6 +21,42 @@ yum install leapp-upgrade
 
 yum install cockpit-leapp
 
-4. iniciar  preupgrade 
-leapp preupgrade
+4. iniciar  preupgrade
+#evitar errores conocidos
+ulimit -n 16384
+leapp preupgrade --target 8.10
 Este comando generará un informe en /var/log/leapp/leapp-report.txt. No intentes el
+
+#solo para informix  el resultado fue el siguiente
+
+Resumen de pasos a seguir ahora:
+Ejecuta: ln -snf IFMXDATA1 /IFMXDATA
+
+Ejecuta: leapp answer --section remove_pam_pkcs11_module_check.confirm=True
+
+Limpia la variable: unset LD_LIBRARY_PATH
+
+#ahora si procedemos con el updgrade 
+https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html-single/upgrading_from_rhel_7_to_rhel_8/index#proc_preparing-a-satellite-system-for-the-upgrade_upgrading-from-rhel-7-to-rhel-8
+
+
+# si  despues de realizar el upgrade no se logran ver los repositorios segun elmanual ejectuar esto 
+
+subscription-manager config --rhsm.manage_repos=1
+subscription-manager refresh
+# si el comando subscription-manager release  no muestra la version ejectuar 
+subscription-manager release --set=8.10
+
+# al momento de llegar a la ultima parte del manual  de la validacion de selinux ausearch -m AVC,USER_AVC -ts boot  si se encuentran denegacion entonces 
+
+fixfiles -F onboot
+reboot
+
+#antes del apartado final instalar la herrmaienta
+dnf install openscap-scanner scap-security-guide -y
+
+#ejecuta un scaneo  oscap xccdf eval --profile ospp --report reporte_rhel8_previo_v9.html /usr/share/xml/scap/ssg/content/ssg-rhel8-ds.xml
+
+#luego ejecutar hardening 
+oscap xccdf eval --profile pci-dss --remediate /usr/share/xml/scap/ssg/content/ssg-rhel8-ds.xml
+reboot
