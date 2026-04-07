@@ -1,0 +1,26 @@
+#antes de iniciar   se debe de hacer un update del sistema operativo 
+ cat /etc/os-release
+yum update -y
+reboot
+
+
+1. Habilitar Repositorios Necesarios
+Ejecuta los siguientes comandos para asegurarte de que los canales de soporte y extras estén activos:
+
+
+subscription-manager repos --enable rhel-7-server-extras-rpms
+subscription-manager repos --enable rhel-7-server-optional-rpms
+
+2. Instalar el Framework de Leapp
+Antes de intentar instalar el complemento de Cockpit, es fundamental instalar la herramienta base y los datos de migración:
+
+
+yum install leapp-upgrade
+
+3. Instalar el Complemento de Cockpit
+
+yum install cockpit-leapp
+
+4. iniciar  preupgrade 
+leapp preupgrade
+Este comando generará un informe en /var/log/leapp/leapp-report.txt. No intentes el
