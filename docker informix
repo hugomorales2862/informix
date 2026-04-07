@@ -183,10 +183,14 @@ fase de implementacion keepalived
 -----------------------------------------------------------
 sudo yum install keepalived -y
 
-modificar el archivo de configuracion de keepalived 
-modificar el sqlhosts  
+/etc/keepalived/keepalived.conf
+#modificar el archivo de configuracion de keepalived 
+#modificar el sqlhosts  
 apagar la db 
 encender la db 
+
+#para poder iniciar la transferencia de identidad modficar el sqlhosts   y descomentarear las lineas   del alias
+#modificar el /etc/hosts  y asignarle la ip  que adoptara 
 
 
 
@@ -196,4 +200,36 @@ encender la db
 
 ####################podemos agregar una llave para que nadie pueda borrar nuetras llaves  chattr +i /home/rzync/.ssh/authorized_keys
 ##################### y asi se quita la llave chattr -i /home/rzync/.ssh/authorized_keys
+
+
+
+
+🎯 OBJETIVO
+
+Tener:
+
+Time zone: America/Guatemala (CST, -0600)
+NTP enabled: yes
+NTP synchronized: yes
+🔹 PASO 1: Configurar zona horaria
+
+Esto ya lo tienes casi seguro, pero por si acaso:
+
+sudo timedatectl set-timezone America/Guatemala
+
+Verifica:
+
+timedatectl
+🔹 PASO 2: Activar sincronización NTP
+sudo timedatectl set-ntp true
+
+👉 Esto activa el servicio de sincronización automática
+
+🔹 PASO 3: Verificar estado
+timedatectl
+
+Debe salir:
+
+NTP enabled: yes
+
 
