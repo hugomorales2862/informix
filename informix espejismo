@@ -170,7 +170,7 @@ hostname
 #realizamos pruebas de conexion   entre ambos  nodos por lo regular dbaccess 
 #realizamos una copia de nivel 0   y la emviamos de manera temporal   a /tmp/ para que no interfiera con la configuracion inicial de la db 
 
-ontape -s-L 0 -t STDIO | gzip > /tmp/master.ontape.gz
+ontape -s -L 0 -t STDIO | gzip > /tmp/master.ontape.gz
 
 #luego mandamos este backup al nodo b   con scp  o rzync   
 
