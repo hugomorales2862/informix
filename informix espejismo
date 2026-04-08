@@ -181,16 +181,25 @@ zcat /tmp/master.ontape.gz | ontape -p -v -t STDIO
 ------------------------------------------------------------
 fase de implementacion keepalived
 -----------------------------------------------------------
-sudo yum install keepalived -y
+#en el nodo a   bajar todo 
+sudo systemctl stop keepalived
+sudo systemctl disable keepalived
 
-/etc/keepalived/keepalived.conf
-#modificar el archivo de configuracion de keepalived 
-#modificar el sqlhosts  
 apagar la db 
-encender la db 
-
 #para poder iniciar la transferencia de identidad modficar el sqlhosts   y descomentarear las lineas   del alias
 #modificar el /etc/hosts  y asignarle la ip  que adoptara 
+#modificar el sqlhosts 
+sudo yum install keepalived -y
+
+#modificar el archivo de configuracion de keepalived 
+/etc/keepalived/keepalived.conf
+sudo systemctl enable keepalived
+sudo systemctl start keepalived
+
+ 
+encender la db 
+
+
 
 
 
