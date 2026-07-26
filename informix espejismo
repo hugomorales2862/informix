@@ -205,28 +205,49 @@ encender la db
 
 
 ###############en el mejor de los casos para activar el espejo y tenga los datos de todos los usuarios esto si es que aun no son virtuales ejecutar este comando, esto correrlo desde el nodo hijo 
-rsync -avzP root@192.168.73.19:/etc/{passwd,shadow,group,gshadow} /etc/
-# 1. Corregir permisos de las llaves privadas de SSH 
-chmod 600 /etc/ssh/ssh_host_*_key
-chmod 755 /etc/ssh
+# 1. Crear carpeta temporal
+mkdir -p /tmp/sync_prod
 
-# 2. Corregir permisos del sistema de usuarios y contraseñas
-chmod 644 /etc/passwd /etc/group
-chmod 000 /etc/shadow /etc/gshadow
-chown root:root /etc/passwd /etc/shadow /etc/group /etc/gshadow
+# 2. Descargar archivos de cuentas de Producción (srvlnx2)
+rsync -avz root@srvlnx2:/etc/passwd /tmp/sync_prod/
+rsync -avz root@srvlnx2:/etc/group /tmp/sync_prod/
+rsync -avz root@srvlnx2:/etc/shadow /tmp/sync_prod/
 
-# 3. Levantar y verificar el servicio SSH
-systemctl restart sshd
-systemctl status sshd
+# 1. Crear respaldos de seguridad
+cp /etc/passwd /etc/passwd.bak
+cp /etc/group /etc/group.bak
+cp /etc/shadow /etc/shadow.bak
 
-# 4. Limpiar la caché de nombres/usuarios para que reconozca los cambios
-sss_cache -E 2>/dev/null || systemctl restart sssd 2>/dev/null
-nscd -i passwd 2>/dev/null && systemctl restart nscd 2>/dev/null
+# 2. Limpiar UID 1000 y usuario viejo del Espejo
+sed -i '/:1000:/d' /etc/passwd
+sed -i '/^informix:/d' /etc/passwd
+sed -i '/:1000:/d' /etc/group
+sed -i '/^informix:/d' /etc/group
+sed -i '/^informix:/d' /etc/shadow
 
+# 3. Inyectar usuario informix y grupo finanzas desde los archivos de Producción
+grep "^informix:" /tmp/sync_prod/group >> /etc/group
+grep "^finanzas:" /tmp/sync_prod/group >> /etc/group 2>/dev/null || true
+grep "^informix:" /tmp/sync_prod/passwd >> /etc/passwd
+grep "^informix:" /tmp/sync_prod/shadow >> /etc/shadow
+
+# 1. Eliminar líneas duplicadas en /etc/group
+awk '!seen[$0]++' /etc/group > /etc/group.clean && mv -f /etc/group.clean /etc/group
+chmod 644 /etc/group
+
+# 2. Normalizar miembros del grupo finanzas si quedó duplicado
+sed -i 's/finanzas:x:215:.*/finanzas:x:215:informix/' /etc/group
+
+# 3. Limpiar caché de nombres de usuario en Linux (SSSD / NSCD)
+nscd -i passwd 2>/dev/null || true
+nscd -i group 2>/dev/null || true
+sss_cache -E 2>/dev/null || true
+
+# Corregir la propiedad de los directorios de Informix con los nuevos IDs (1000)
+chown -R informix:informix /home/informix
+chown -R informix:informix $INFORMIXDIR
 ####################podemos agregar una llave para que nadie pueda borrar nuetras llaves  chattr +i /home/rzync/.ssh/authorized_keys
 ##################### y asi se quita la llave chattr -i /home/rzync/.ssh/authorized_keys
-
-
 
 
 🎯 OBJETIVO
